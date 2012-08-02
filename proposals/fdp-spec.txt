@@ -1,0 +1,71 @@
+	FreeDomo Protocol specification (FDP)
+	
+		Nils Vogels
+
+0. Preliminary
+
+	The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL
+      NOT", "SHOULD", "SHOULD NOT", "RECOMMENDED",  "MAY", and
+      "OPTIONAL" in this document are to be interpreted as described in
+      RFC 2119.
+
+1. Overview
+
+	This document specifies the FreeDomo Protocol
+
+2. Roles
+
+	The cornerstones of the FDP network are nodes, who MUST have at least
+	one role. Currently the following roles are available:
+
+	- MASTER
+	- SLAVE
+	- INPUT
+	- OUTPUT
+	- SENSOR
+	- ACTUATOR
+
+2.1 MASTER role
+	
+	Every FDP network MUST have exactly one MASTER node. The MASTER node
+	MUST NOT have any other roles in the network.
+
+	It is the sole task of the MASTER node to guard network integrity and
+	accept new nodes into the network.
+
+	The MASTER node also decides on the Network Identifier (NID), which
+	acts as an addressing prefix for all nodes in the network.
+
+2.2 SLAVE role
+
+	An FDP network MAY have one or more SLAVE nodes. A SLAVE node MAY
+	assume the role of MASTER once it has established that the original
+	MASTER has failed and it is still able to contact over 50% of the
+	original FDP network.
+
+	A SLAVE node MUST receive a complete view of the network from the master
+	on a regular basis, so it may perform role assumption properly
+
+2.3 INPUT role
+
+	A node that has an INPUT role is able to handle human input and MUST send
+	this input to the paired node, or in it's absence the upstream for safe
+	keeping.
+
+2.4 OUTPUT role
+
+	A node that has an OUTPUT role is able to display data in a
+	human-interpretable way. Typical examples are LCD screens, indicator
+	lights, etc. 
+
+2.5 SENSOR role
+
+	A node that has a SENSOR role is able to sense it's surroundings and
+	MUST report this back to the requestor, or in it's absence the upstream 
+	for safe keeping. 
+
+2.6 ACTUATOR role
+
+	A node that has an ACTUATOR role is able to take an action that
+	influences the fysical surroundings of the node. A light illuminates,
+	a garage door opens the door.
