@@ -1,0 +1,67 @@
+	FreeDomo Protocol primer: Basic terminology and function
+
+			Nils Vogels
+
+This is not a design document; most design criteria are not yet examined. 
+
+0. Preliminaries
+
+	The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL
+      NOT", "SHOULD", "SHOULD NOT", "RECOMMENDED",  "MAY", and
+      "OPTIONAL" in this document are to be interpreted as described in
+      RFC 2119.
+
+1. Overview
+
+	The FreeDomo Protocol (after this: FDP) is the main communication
+	protocol inside the FreeDomo Domotica system. This protocol handles 
+	all communication between all nodes. This document explains the basic
+	function and terminology of FDP.
+
+2. Nodes
+
+	All devices that are part of an FDP network are called a node.
+
+3. Roles
+
+	A role is a specific type of function that an node fulfills. Think of 
+	roles as a feature the entity has; A lightbulb has an ACTUATOR role: 
+	It serves light. A toggle switch has an INPUT role: A human can indicate
+	a desired action by pressing the switch.
+
+3.1 Role specification
+
+	Each node MUST have at least one role.
+
+3.2 Available roles
+
+	A complete list of available roles can be found in fdp-spec.txt
+
+4. Communication layers
+
+	FDP has a communication setup that consists of 2 layers: Message and
+	Transport
+
+4.1 Transport layer
+
+	The responsibility of the transport layer is to carry messages to their
+	destination. It does so regardless of the medium. The existance of the
+	transport layer makes FDP medium-independant. All nodes MUST support
+	at least one transport layer
+
+	A complete list of available transport layers can be found in
+	fdp-spec.txt
+
+4.2 Message layer
+
+	The message layer exchanges messages between nodes. These messages can
+	be sensor values such as temperature, motion detection or weather, but
+	also directives for lights to switch on, or touchpad input. A key
+	element of the Message layer it's type-length-value orientation. This
+	orientation makes it possible for nodes to process only messages they 
+	know how to process, and ignore others, which makes introduction of 
+	features and messages in the network much more flexible and the
+	network a lot more stable because of it. All nodes MUST support at
+	least the "NETWORK" section of the message layer.
+
+	A complete list of available messages can be found in fdp-spec.txt
