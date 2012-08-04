@@ -69,3 +69,118 @@
 	A node that has an ACTUATOR role is able to take an action that
 	influences the fysical surroundings of the node. A light illuminates,
 	a garage door opens the door.
+
+3 Messages
+
+	Messages are the basis of processing updates and commands in FDP
+	networks. All nodes MUST communicate via messages.
+
+3.1 Message layout
+	
+	Messages MUST have a set layout, which looks like:
+
+	+---------------------------------------------------------------------------+
+	| Field  | NID | SAD | DAD | STYPE | MTYPE | MLEN | MDATA      | OPT | CRC  |
+	+---------------------------------------------------------------------------+
+	| Length | 1   | 2   | 2   | 2     | 1     | 2    | Up to 64kB |  1  |  4   |
+        +---------------------------------------------------------------------------+
+	Lengths are in bytes
+	Min length: 16 bytes
+	Max length: 65551 bytes
+
+
+	The fields have the following formats:
+
+	NID: The network-id. The network-id is a one-byte ID that has been
+	determined by the MASTER upon network initialization. The main purpose 
+	of the network-id is to distinguish the network for neighboring network 
+	who may be within transmission rate of wireless equipment
+
+	SAD: Source address. This is the address of the sender of a message
+
+	DAD: Destination address. This is the address of the sender of a
+	message
+
+	STYPE: Source node type. The bitvalue of the source node type. This is
+	used, combined with the message type if the message can be interpreted 
+	by the receiving node
+
+	MTYPE: Message type. This field indicates the type of message that
+	follows in the MDATA field. It's value is the bitvalue of the
+	message type that was sent.
+
+	MLEN: Since the length of the MDATA field can vary, MLEN contains the
+	length in bytes of the following MDATA field
+
+	MDATA: The actual data of the message. If the data cell that is to be
+	transmitted exceeds 64 bytes, it should be splitted into multiple messages.
+
+	OPT: A bitfield indicating which -ptions that are active in the sent message.
+	Examples of options are a sequence number, or a flag indication reassembly is
+	needed
+
+	CRC: A cyclic reduncancy check of the complete message.
+
+3.2	Bitfield values
+
+3.2.2	The following values SHOULD be used in construction of node type
+	bitfield:
+	
+	UNUSED	 - 65536 - 256
+	MASTER   - 128
+	SLAVE    -  64
+	INPUT    -  32
+        OUTPUT   -  16
+        SENSOR   -   8
+        ACTUATOR -   4
+        UNUSED   -   2
+        UNUSED   -   1
+
+	Since a node can have multiple roles, the values should be added to
+	combine node roles.
+	
+	Example: A combined SENSOR / ACTUATOR node has a value of 12.
+
+3.2.3	Currently message types are universal for all node types. A future
+	version of FDP may allow different message types depending on the node
+	type. To support this, the source node type is already present in any
+	message.
+
+	Typical MASTER messages:
+
+	1 - SLAVE acknowledgement:
+		This message is used by a master to acknowledge it has
+		understood the slave role of a node and will replicate updates
+		to the slave node
+	2 - RE-INIT:
+		This message indicates a need for the master to re-initialize
+		the network. The MDATA field MAY include a new Network-ID, for
+		instance to change Network-ID's. All non-MASTER nodes SHOULD
+		start initializing in the mentioned Network-ID.
+	3 - AMHERE:
+		This message SHOULD only be sent to NID 0xFF as reply to a
+		DISCOVER message to indicate the presence of a FDP network.
+		MDATA SHOULD contain at least the NID the network is operating on
+	4 - OFFER:
+		This message indicates the wish of a MASTER to assimilate a
+		node into the network, after it has requested. MDATA will
+		contain the assigned address, which is unique inside the FDP
+		network
+
+	Typical generic messages:
+
+	10 - HELLO:
+		This message is used by a master to see if a node is still
+		alive. The master will embed a message-id in the MDATA field, 
+		which the receiver should include in the reply. The used message in
+		reply to a HELLO MUST be a HELLO message. The reply MUST be
+		received within 5 x the maximum SLEEP time in the network, or the 
+		MASTER MAY assume the node is unreachable
+	11 - DISCOVER:
+		This message MUST be sent to the special NID of 0xFF and
+		destination address of 0xFFFF. This message is used to attempt to 
+		discover an existing FDP network
+	12 - KNOCK:
+		This message is used by any non-master node to request to join
+		a network. MDATA should contain the requested NID, and SHOULD
+		be sent to the NID of 0xFF and address of 0xFFFF
