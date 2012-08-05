@@ -114,10 +114,12 @@
 
 	MDATA: The actual data of the message. If the data cell that is to be
 	transmitted exceeds 64 bytes, it should be splitted into multiple messages.
+	If multiple fields are transmitted, which do not carry their own
+	label, the fields are seperated by 0xFFFF
 
-	OPT: A bitfield indicating which -ptions that are active in the sent message.
-	Examples of options are a sequence number, or a flag indication reassembly is
-	needed
+	OPT: A bitfield indicating which options that are active in the sent message.
+	Examples of options are a sequence number of the message, or a flag 
+	indicating reassembly is needed
 
 	CRC: A cyclic reduncancy check of the complete message.
 
@@ -162,25 +164,178 @@
 		DISCOVER message to indicate the presence of a FDP network.
 		MDATA SHOULD contain at least the NID the network is operating on
 	4 - OFFER:
-		This message indicates the wish of a MASTER to assimilate a
+		This message indicates the wish of a MASTER to accept a
 		node into the network, after it has requested. MDATA will
 		contain the assigned address, which is unique inside the FDP
 		network
+	5 - WELCOME:
+		This message concludes the process of a node joining the
+		network and indicates the MASTER has processed the join
+		succesfully. The node may now send non-initialization messages
+	6 - DENY:
+		This message indicates a node that the MASTER is not allowing
+		network joins at this moment.
+	7 - EVAC:
+		This message indicates the wish of a MASTER to remove a node
+		from the network. 
+	8 - MCHECK:
+		Check if another MASTER is answering messages.
+	9 - CONFIG:
+		Requests a complete config report from a node
+	10 - TIME:
+		Reports current time to a node. MDATA contains an offset to
+		the epoch in seconds, day of week and time of day.
+		Day of week is a 1-byte bitfield, time of day is 3 bytes,
+		using military notation. First byte indicates hours, second byte indicates
+		minutes, third indicates seconds.
+	
+		Day bitfield values:
+		Monday - 1
+		Tuesday - 2
+		Wednesday - 4
+		Thursday - 8
+		Friday - 16
+		Saturday - 32
+		Sunday - 64
 
 	Typical generic messages:
 
-	10 - HELLO:
+	16 - HELLO:
 		This message is used by a master to see if a node is still
 		alive. The master will embed a message-id in the MDATA field, 
 		which the receiver should include in the reply. The used message in
 		reply to a HELLO MUST be a HELLO message. The reply MUST be
 		received within 5 x the maximum SLEEP time in the network, or the 
 		MASTER MAY assume the node is unreachable
-	11 - DISCOVER:
+	17 - DISCOVER:
 		This message MUST be sent to the special NID of 0xFF and
 		destination address of 0xFFFF. This message is used to attempt to 
 		discover an existing FDP network
-	12 - KNOCK:
+	18 - KNOCK:
 		This message is used by any non-master node to request to join
-		a network. MDATA should contain the requested NID, and SHOULD
-		be sent to the NID of 0xFF and address of 0xFFFF
+		a network. MDATA should contain the requested NID, ROLE bitfield
+		and device serial#, and SHOULD be sent to the NID:0xFF and DAD:0xFFFF
+	19 - OHAI:
+		This message is used by any non-master node to confirm
+		succesful configuration for a network. NID, SAD and DAD should be
+		set appropriately, MDATA should contain the ROLE bitfield,
+		node address and a string identifying running
+		software/firmware. Note: Nodes SHOULD NOT send any other
+		messages until WELCOME has been received from the MASTER
+	20 - BUHBYE:
+		This message is sent from a non-MASTER to a MASTER to indicate
+		its intentions to leave the network gracefully. MDATA MAY contain 
+		the unixtime in case this is a scheduled departure, for instance 
+		due to planned node unavailability
+	20 - TIMERQ:
+		This message is used to request current time from the MASTER.
+		The reported time is an offset to the epoch, aka unixtime.
+	21 - HUH?:
+		This message is used to request retransmission of a message,
+		for instance due to CRC error. MDATA contains the sequence
+		number of the latest correctly received message.
+	22 - GETSCHED:
+		Receives the bitfield of a schedule from a non-MASTER node
+	23 - SETSCHED:
+		Updates the bitfield of a schedule from a non-MASTER node
+
+4. Network initalization
+
+	In the case of a totally absent network, the following message-exchanges SHOULD
+	take place, in chronological order:
+
+	Any node, except candidate MASTER nodes:
+
+		Send DISCOVER to NID:0xFF / DAD:0xFFFF, wait SLEEP_PERIOD for reply,
+		retry until AMHERE received
+
+		Upon reception of a AMHERE message if the offered NID is the
+		NID we intended to join. Ignore if the NID is different
+
+		Send KNOCK with NID:0xFF / DAD:0xFFFF and MDATA of required
+		NID, ROLE bitfield and device serial#, wait SLEEP_PERIOD for 
+		reception of OFFER, retry 10x SLEEP_PERIOD. If no OFFER is received,
+		restart initialization.
+
+		Upon reception of OFFER, the node MAY reset internal logic to
+		initialize sensors, actuators, etc and send OHAI afterwards to
+		the correct NID/DAD and MDATA of the device serial# wait SLEEP_PERIOD 
+		for reception of WELCOME, retry 3x SLEEP_PERIOD. If no WELCOME is 
+		received, restart initialization.
+
+		If DENY is received, wait 30 x SLEEP_PERIOD and restart
+		initialization.
+
+		If WELCOME is received, the node has succesfully joined the
+		network and is considered to be ready for more messages
+	
+		Network initialization is now complete. Usually this is
+		followed by a CONFIG message from the MASTER, and possibly
+		initialization statements
+
+	Candidate MASTER node:
+
+		Send DISCOVER to NID:0xFF / DAD:0xFFFF, wait SLEEP_PERIOD for
+		reply, retry until a maximum of 3 retries
+
+		Compare any received AMHERE with the intended NID to become
+		MASTER for. If a MASTER is already present, the candidate
+		MASTER MAY attempt to join the network as SLAVE, it SHOULD NOT
+		continue initialization of the MASTER role
+
+		If no AMHERE with the intended NID has been received, the NID
+		is considered to be MASTER-less.
+
+		Assume MASTER role for the NID and empty the list of nodes in
+		the network, except for the MASTER node. Assign address to the
+		MASTER node. The usual address for the MASTER node is 0x0001
+
+5. Schedules
+
+	FDP uses schedules to allow nodes to operate independently from a
+	present MASTER. Schedules allow a single action to occur per role per
+	minute. Schedules have the limited span of a week and start at Sunday
+	0:00
+	Each node SHOULD have the ability to store a schedule for each role it has. 
+
+5.1 Schedule format
+
+	A schedule has the maximum span of a week. One week is 10080 minutes.
+	We add 20 extra positions for future use, giving a total of 11000
+	switching moments.
+
+	Each switching moment has 4 bits, of which a few are predetermined. 
+
+	All this results in a complete switching schedule bitfield size of 5500 bytes.
+	Any device storing a schedule SHOULD have 6kB available per schedule
+	to store.
+
+5.1.1	Schedule bit usage
+
+	Schedules contain instructions for events, stored in a bitfield. The
+	following bits are reserved:
+
+	0000:	The device should switch off (ACTUATOR role)
+	0001:	The device should switch on (ACTUATOR role)
+	0010:	The device should read sensor 0 and report (SENSOR role)
+	0011: 	The device should read sensor 1 and report (SENSOR role)
+	0100:	The device is allowed to go into power saving (SENSOR+ACTUATOR role)
+	1111:	The device should not change it's configuration
+
+5.1.2	Schedule example
+
+	This example details the structure of a schedule.
+
+	Example data: An actuator node receives the following schedule:
+
+	11110000111100011111
+
+	Given that every minute is represented by 4 bits, and that schedules
+	span a week, starting at Sunday 0:00, this gives us:
+
+	Sun 0:00: 1111 -> Node takes no scheduled action
+	Sun 0:01: 0000 -> Node switches off if it is an ACTUATOR
+	Sun 0:02: 1111 -> Node takes no scheduled action
+	Sun 0:03: 0001 -> Node switches on if it is an ACTUATOR
+	Sun 0:04: 1111 -> Node takes no scheduled action
+
