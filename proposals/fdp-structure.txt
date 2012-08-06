@@ -65,3 +65,17 @@ This is not a design document; most design criteria are not yet examined.
 	least the "NETWORK" section of the message layer.
 
 	A complete list of available messages can be found in fdp-spec.txt
+
+5. General thought
+
+	FDP is a building block in a complete home automation system, it is the 
+	buidling block that is responsible for addressing the actual electronics in
+	home automation systems and getting them to do things. This is what the 
+	protocol does best, and this is all it should do. Transporting audio/video
+	and the likes is not the intention of the protocol, however it could be
+	possible in theory.
+
+	The home automation network may become unavailable, which SHOULD NOT result
+	in non-functional devices, this may cause dangerous or otherwise
+	undesireable situations, such as not being able to turn on the lights in an
+	emergency.
