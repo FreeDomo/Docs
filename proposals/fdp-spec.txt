@@ -1,6 +1,6 @@
 	FreeDomo Protocol specification (FDP)
 	
-		Nils Vogels
+		Nils Vogels, Rudy Hardeman
 
 0. Preliminary
 
@@ -24,11 +24,13 @@
 	- OUTPUT
 	- SENSOR
 	- ACTUATOR
+	- GATEWAY
 
 2.1 MASTER role
 	
 	Every FDP network MUST have exactly one MASTER node. The MASTER node
-	MUST NOT have any other roles in the network.
+	MUST NOT have any other roles in the network, unless that role is the 
+	GATEWAY role.
 
 	It is the sole task of the MASTER node to guard network integrity and
 	accept new nodes into the network.
@@ -44,7 +46,8 @@
 	original FDP network.
 
 	A SLAVE node MUST receive a complete view of the network from the master
-	on a regular basis, so it may perform role assumption properly
+	on a regular basis, so it may perform role assumption properly. This
+	complete networkview is RECOMMENDED to be transferred over TCP/IP
 
 2.3 INPUT role
 
@@ -70,6 +73,12 @@
 	influences the fysical surroundings of the node. A light illuminates,
 	a garage door opens the door.
 
+2.7 GATEWAY node
+
+	A node that has a GATEWAY role SHOULD also be an active MASTER. The
+	GATEWAY nodes allow for communication between NIDs, effectively the
+	GATEWAY should be considered a message router.
+
 3 Messages
 
 	Messages are the basis of processing updates and commands in FDP
@@ -79,12 +88,12 @@
 	
 	Messages MUST have a set layout, which looks like:
 
-	+---------------------------------------------------------------------------+
-	| Field  | NID | SAD | DAD | STYPE | MTYPE | MLEN | MDATA      | OPT | CRC  |
-	+---------------------------------------------------------------------------+
-	| Length | 1   | 2   | 2   | 2     | 1     | 2    | Up to 64kB |  1  |  4   |
-        +---------------------------------------------------------------------------+
-	Lengths are in bytes
+	+------------------------------------------------------------------+
+	| F | NID | SAD | DAD | STYPE | MTYPE | MLEN | MDATA  | OPT | CRC  |
+	+------------------------------------------------------------------+
+	| L | 1   | 2   | 2   | 2     | 1     | 2    | < 64kB |  1  |  4   |
+        +------------------------------------------------------------------+
+	Lengths (L) are in bytes
 	Min length: 16 bytes
 	Max length: 65551 bytes
 
@@ -135,7 +144,7 @@
         OUTPUT   -  16
         SENSOR   -   8
         ACTUATOR -   4
-        UNUSED   -   2
+        GATEWAY  -   2
         UNUSED   -   1
 
 	Since a node can have multiple roles, the values should be added to
@@ -179,9 +188,11 @@
 		This message indicates the wish of a MASTER to remove a node
 		from the network. 
 	8 - MCHECK:
-		Check if another MASTER is answering messages.
+		Check if another MASTER is answering messages. This can be
+		used as a split-brain prevention.
 	9 - CONFIG:
-		Requests a complete config report from a node
+		Requests a complete config report from a node. MDATA MAY be
+		used to specify partial config reports.
 	10 - TIME:
 		Reports current time to a node. MDATA contains an offset to
 		the epoch in seconds, day of week and time of day.
@@ -197,6 +208,15 @@
 		Friday - 16
 		Saturday - 32
 		Sunday - 64
+	11 - LINK:
+		Creates a link between an INPUT and an ACTUATOR, or a SENSOR
+		and an ACTUATOR. The message is sent to the INPUT or SENSOR 
+		node, with MDATA of the INPUT channel, INPUT trigger criteria,
+		DAD of the ACTUATOR and the ACTUATOR channel.
+	12 - UNLINK:
+		Removes an existing link between an INPUT/SENSOR and an ACTUATOR.
+		The message is sent to the INPUT/SENSOR with MDATA of the
+		INPUT channel, DAD of the ACTUATOR and the ACTUATOR channel.
 
 	Typical generic messages:
 
@@ -296,7 +316,7 @@
 	present MASTER. Schedules allow a single action to occur per role per
 	minute. Schedules have the limited span of a week and start at Sunday
 	0:00
-	Each node SHOULD have the ability to store a schedule for each role it has. 
+	Each node MAY have the ability to store a schedule for each role it has. 
 
 5.1 Schedule format
 
@@ -338,4 +358,3 @@
 	Sun 0:02: 1111 -> Node takes no scheduled action
 	Sun 0:03: 0001 -> Node switches on if it is an ACTUATOR
 	Sun 0:04: 1111 -> Node takes no scheduled action
-
