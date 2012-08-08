@@ -77,7 +77,7 @@
 
 	A node that has a GATEWAY role SHOULD also be an active MASTER. The
 	GATEWAY nodes allow for communication between NIDs, effectively the
-	GATEWAY should be considered a message router.
+	GATEWAY should be considered a message router between networks.
 
 3 Messages
 
@@ -92,7 +92,7 @@
 	| F | NID | SAD | DAD | STYPE | MTYPE | MLEN | MDATA  | OPT | CRC  |
 	+------------------------------------------------------------------+
 	| L | 1   | 2   | 2   | 2     | 1     | 2    | < 64kB |  1  |  4   |
-        +------------------------------------------------------------------+
+    +------------------------------------------------------------------+
 	Lengths (L) are in bytes
 	Min length: 16 bytes
 	Max length: 65551 bytes
@@ -132,15 +132,15 @@
 
 	CRC: A cyclic reduncancy check of the complete message.
 
-3.2	Bitfield values
+3.2	Field values
 
-3.2.2	The following values SHOULD be used in construction of node type
+3.2.1	The following values SHOULD be used in construction of node type
 	bitfield:
 	
-	UNUSED	 - 65536 - 256
-	MASTER   - 128
-	SLAVE    -  64
-	INPUT    -  32
+		UNUSED	 - 65536 - 256
+		MASTER   - 128
+		SLAVE    -  64
+		INPUT    -  32
         OUTPUT   -  16
         SENSOR   -   8
         ACTUATOR -   4
@@ -152,7 +152,7 @@
 	
 	Example: A combined SENSOR / ACTUATOR node has a value of 12.
 
-3.2.3	Currently message types are universal for all node types. A future
+3.2.2	Currently message types are universal for all node types. A future
 	version of FDP may allow different message types depending on the node
 	type. To support this, the source node type is already present in any
 	message.
@@ -196,18 +196,19 @@
 	10 - TIME:
 		Reports current time to a node. MDATA contains an offset to
 		the epoch in seconds, day of week and time of day.
-		Day of week is a 1-byte bitfield, time of day is 3 bytes,
-		using military notation. First byte indicates hours, second byte indicates
-		minutes, third indicates seconds.
+		Day of week is a 3-bit bitfield, time of day is 3 bytes,
+		using military notation. First byte indicates hours, second byte 
+		indicates minutes, third indicates seconds.
 	
 		Day bitfield values:
 		Monday - 1
 		Tuesday - 2
-		Wednesday - 4
-		Thursday - 8
-		Friday - 16
-		Saturday - 32
-		Sunday - 64
+		Wednesday - 3
+		Thursday - 4
+		Friday - 5
+		Saturday - 6
+		Sunday - 7
+		RESERVED - 0
 	11 - LINK:
 		Creates a link between an INPUT and an ACTUATOR, or a SENSOR
 		and an ACTUATOR. The message is sent to the INPUT or SENSOR 
@@ -240,7 +241,7 @@
 		succesful configuration for a network. NID, SAD and DAD should be
 		set appropriately, MDATA should contain the ROLE bitfield,
 		node address and a string identifying running
-		software/firmware. Note: Nodes SHOULD NOT send any other
+		software/firmware and features. Note: Nodes SHOULD NOT send any other
 		messages until WELCOME has been received from the MASTER
 	20 - BUHBYE:
 		This message is sent from a non-MASTER to a MASTER to indicate
@@ -258,11 +259,46 @@
 		Receives the bitfield of a schedule from a non-MASTER node
 	23 - SETSCHED:
 		Updates the bitfield of a schedule from a non-MASTER node
+	24 - OK:
+		Acknowledgment of another message. MDATA contains the sequence number of
+		the message this is an acknowledgment for.
+
+3.2.3 OHAI MDATA contents
+
+3.2.3.1 Role
+
+	The role should be transmitted as the bitfield mentioned earlier in this
+	document
+
+3.2.3.2 Features
+
+	The list of features of a device is the second field in MDATA.
+	Since one node can have multiple features, this is also a bitfield.
+
+	1	-	Device has a unique ID embedded
+	2	-	Device is battery-powered
+	4+	-	UNUSED
+
+3.2.3.3 Device types
+
+	The device type of a device is the third field in MDATA. Since a node is
+	only one device type, this is not a bitfield but a value but a 
+
+	1	-	Pushbutton
+	2	-	Rocker button
+	3	-	PIR motion sensor
+	4	-	Temperature sensor	
+
+3.2.3.4 Amount of devices
+
+	The fourth field is the amount of devices in the node. If there are for
+	instance 2 PIR cells in the node, the value of this field is 2. There is a
+	maximum of 256 devices in a node.
 
 4. Network initalization
 
-	In the case of a totally absent network, the following message-exchanges SHOULD
-	take place, in chronological order:
+	In the case of a totally absent network, the following message-exchanges 
+	SHOULD take place, in chronological order:
 
 	Any node, except candidate MASTER nodes:
 
